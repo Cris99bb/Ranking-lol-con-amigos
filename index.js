@@ -1,19 +1,13 @@
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
-require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-
 app.use(cors());
-app.use(express.json());
 
-// 👉 servir frontend desde /public
-app.use(express.static("public"));
+const API_KEY = "RGAPI-8b3a45f9-17bb-4269-8ae4-9f3a04ac1f15";
 
-const API_KEY = process.env.RIOT_API_KEY;
-
+// 👇 TUS JUGADORES
 const players = [
   "AngélàWhítè#S3S0",
   "Muted#nyah",
@@ -21,97 +15,90 @@ const players = [
   "KevinB2000#LAN"
 ];
 
-// 🔎 obtener PUUID
+// 🔥 separar gameName + tagLine
+function splitName(full) {
+  const [gameName, tagLine] = full.split("#");
+  return { gameName, tagLine };
+}
+
+// 🔥 obtener PUUID
 async function getPUUID(gameName, tagLine) {
-  try {
-    const url = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?api_key=${API_KEY}`;
-    const res = await axios.get(url);
-    return res.data.puuid;
-  } catch (err) {
-    return null;
-  }
+  const url = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}/${tagLine}`;
+
+  const res = await axios.get(url, {
+    headers: { "X-Riot-Token": API_KEY }
+  });
+
+  return res.data.puuid;
 }
 
-// 🏆 obtener ranks
+// 🔥 obtener ranked
 async function getRank(puuid) {
-  try {
-    const url = `https://la1.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}?api_key=${API_KEY}`;
-    const res = await axios.get(url);
+  const url = `https://la1.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`;
 
-    const data = res.data;
+  const res = await axios.get(url, {
+    headers: { "X-Riot-Token": API_KEY }
+  });
 
-    const solo = data.find(x => x.queueType === "RANKED_SOLO_5x5");
-    const flex = data.find(x => x.queueType === "RANKED_FLEX_SR");
+  const data = res.data;
 
-    return { solo, flex };
-  } catch (err) {
-    return null;
-  }
+  const solo = data.find(d => d.queueType === "RANKED_SOLO_5x5");
+  const flex = data.find(d => d.queueType === "RANKED_FLEX_SR");
+
+  return { solo, flex };
 }
 
-// 📊 orden de rangos
-const tierOrder = {
-  CHALLENGER: 9,
-  GRANDMASTER: 8,
-  MASTER: 7,
-  DIAMOND: 6,
-  EMERALD: 5,
-  PLATINUM: 4,
-  GOLD: 3,
-  SILVER: 2,
-  BRONZE: 1,
-  IRON: 0
-};
-
-function getScore(player) {
-  if (!player.solo) return 0;
-
-  const tier = player.solo.rank.split(" ")[0];
-  const lp = player.solo.lp;
-
-  return (tierOrder[tier] || 0) * 1000 + lp;
-}
-
-// 📡 API ranking
+// 🔥 API
 app.get("/ranking", async (req, res) => {
-  const results = [];
+  try {
+    const results = [];
 
-  for (const fullName of players) {
-    const [gameName, tagLine] = fullName.split("#");
+    for (const p of players) {
+      const { gameName, tagLine } = splitName(p);
 
-    const puuid = await getPUUID(gameName, tagLine);
-    const rank = puuid ? await getRank(puuid) : null;
+      try {
+        const puuid = await getPUUID(gameName, tagLine);
+        const rank = await getRank(puuid);
 
-    results.push({
-      name: fullName,
+        results.push({
+          name: p,
 
-      solo: rank?.solo
-        ? {
-            lp: rank.solo.leaguePoints,
-            rank: `${rank.solo.tier} ${rank.solo.rank}`,
-            wins: rank.solo.wins,
-            losses: rank.solo.losses
-          }
-        : null,
+          solo: rank.solo
+            ? {
+                tier: rank.solo.tier,
+                rank: rank.solo.rank,
+                lp: rank.solo.leaguePoints,
+                wins: rank.solo.wins,
+                losses: rank.solo.losses
+              }
+            : null,
 
-      flex: rank?.flex
-        ? {
-            lp: rank.flex.leaguePoints,
-            rank: `${rank.flex.tier} ${rank.flex.rank}`,
-            wins: rank.flex.wins,
-            losses: rank.flex.losses
-          }
-        : null
-    });
+          flex: rank.flex
+            ? {
+                tier: rank.flex.tier,
+                rank: rank.flex.rank,
+                lp: rank.flex.leaguePoints,
+                wins: rank.flex.wins,
+                losses: rank.flex.losses
+              }
+            : null
+        });
+
+      } catch (err) {
+        results.push({
+          name: p,
+          solo: null,
+          flex: null
+        });
+      }
+    }
+
+    res.json(results);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "error server" });
   }
-
-  // 🔥 ordenar mejor a peor
-  results.sort((a, b) => getScore(b) - getScore(a));
-
-  res.json(results);
 });
 
-// 🚀 server
-app.listen(PORT, () => {
-  console.log(`🔥 Server running on port ${PORT}`);
-});
+app.listen(3000, () => console.log("🔥 Server listo en puerto 3000"));
