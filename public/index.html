@@ -1,125 +1,237 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ranking LoL Pro</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LoL Ranking Pro Max</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: radial-gradient(circle at top, #0f172a, #020617);
-      color: white;
-    }
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: radial-gradient(circle at top, #0f172a, #020617);
+  color: white;
+}
 
-    h1 {
-      text-align: center;
-      padding: 20px;
-      font-size: 32px;
-      color: #38bdf8;
-      letter-spacing: 1px;
-    }
+/* HEADER */
+h1 {
+  text-align:center;
+  padding:20px;
+  color:#38bdf8;
+}
 
-    #ranking {
-      max-width: 800px;
-      margin: auto;
-      padding: 10px;
-    }
+/* TOP 1 */
+.top1 {
+  width: 85%;
+  margin: 15px auto;
+  padding: 20px;
+  border-radius: 16px;
+  background: linear-gradient(90deg,#facc15,#f59e0b);
+  color: black;
+  font-weight: bold;
+  font-size: 18px;
+  animation: fadeIn 1s ease;
+}
 
-    .card {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #111827;
-      border: 1px solid #1f2937;
-      padding: 15px;
-      margin: 10px 0;
-      border-radius: 12px;
-      transition: 0.25s;
-    }
+/* CARD */
+.card {
+  width: 85%;
+  margin: 10px auto;
+  padding: 15px;
+  border-radius: 14px;
+  background: #111827;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 
-    .card:hover {
-      transform: scale(1.02);
-      border-color: #38bdf8;
-    }
+  opacity: 0;
+  transform: translateY(20px);
+  animation: slideUp .4s forwards;
+  transition: 0.2s;
+}
 
-    .left {
-      display: flex;
-      flex-direction: column;
-    }
+.card:hover {
+  transform: scale(1.02);
+  border: 1px solid #38bdf8;
+}
 
-    .name {
-      font-size: 18px;
-      font-weight: bold;
-    }
+.left {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
 
-    .rank {
-      font-size: 14px;
-      color: #94a3b8;
-    }
+.name {
+  font-size: 18px;
+  font-weight: bold;
+}
 
-    .lp {
-      font-size: 18px;
-      font-weight: bold;
-      color: #22c55e;
-    }
+.rank {
+  font-size: 13px;
+  color: #94a3b8;
+}
 
-    .position {
-      font-size: 20px;
-      font-weight: bold;
-      color: #38bdf8;
-      width: 40px;
-    }
-  </style>
+.lp {
+  font-size: 18px;
+  color: #22c55e;
+  font-weight: bold;
+}
+
+/* WINRATE BAR */
+.bar {
+  width: 120px;
+  height: 6px;
+  background: #1f2937;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.bar-fill {
+  height: 100%;
+  background: #22c55e;
+}
+
+/* BADGES */
+.badge {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* COLORES POR ELO */
+.IRON { background:#444; }
+.BRONZE { background:#b45309; }
+.SILVER { background:#94a3b8; }
+.GOLD { background:#facc15; color:black; }
+.PLATINUM { background:#14b8a6; }
+.EMERALD { background:#10b981; }
+.DIAMOND { background:#3b82f6; }
+.MASTER { background:#a855f7; }
+.GRANDMASTER { background:#ef4444; }
+.CHALLENGER { background:#f97316; }
+
+/* ANIMACIONES */
+@keyframes slideUp {
+  to { opacity:1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity:0; }
+  to { opacity:1; }
+}
+</style>
 </head>
 
 <body>
 
-  <h1>🔥 Ranking LoL Pro</h1>
+<h1>🔥 Ranking LoL Pro Max</h1>
 
-  <div id="ranking">Cargando...</div>
+<div id="top1"></div>
+<div id="list"></div>
 
-  <script>
-    const API_URL = "https://ranking-lol-con-amigos.onrender.com/ranking";
+<script>
+const API = "https://ranking-lol-con-amigos.onrender.com/ranking";
 
-    async function loadRanking() {
-      try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
+let lastTop = null;
 
-        let html = "";
+function tier(p){
+  if(!p?.solo) return "IRON";
+  return p.solo.rank.split(" ")[0].toUpperCase();
+}
 
-        data.forEach((p, i) => {
-          html += `
-            <div class="card">
-              <div class="position">#${i + 1}</div>
+function winrate(w,l){
+  if(!w && !l) return 0;
+  return Math.round((w/(w+l))*100);
+}
 
-              <div class="left">
-                <div class="name">${p.name}</div>
-                <div class="rank">
-                  SoloQ: ${p.solo ? p.solo.rank : "Unranked"} | 
-                  Flex: ${p.flex ? p.flex.rank : "Unranked"}
-                </div>
-              </div>
+function sound(){
+  const ctx = new AudioContext();
+  const osc = ctx.createOscillator();
+  osc.frequency.value = 600;
+  osc.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.15);
+}
 
-              <div class="lp">
-                ${p.solo ? p.solo.lp + " LP" : ""}
-              </div>
-            </div>
-          `;
-        });
+async function load(){
+  const res = await fetch(API);
+  const data = await res.json();
 
-        document.getElementById("ranking").innerHTML = html;
+  if(!data.length) return;
 
-      } catch (err) {
-        document.getElementById("ranking").innerHTML = "Error cargando datos";
-      }
-    }
+  // TOP 1
+  if(lastTop !== data[0]?.name){
+    sound();
+    lastTop = data[0]?.name;
+  }
 
-    loadRanking();
-    setInterval(loadRanking, 30000);
-  </script>
+  document.getElementById("top1").innerHTML = `
+    <div class="top1">
+      🥇 TOP 1: ${data[0].name}
+      | ${data[0].solo?.rank || "Unranked"}
+      | ${data[0].solo?.lp || 0} LP
+      | WR ${data[0].solo?.winrate || 0}%
+    </div>
+  `;
+
+  // LISTA
+  let html = "";
+
+  data.forEach((p,i)=>{
+    const t = tier(p);
+    const w = p.solo?.wins || 0;
+    const l = p.solo?.losses || 0;
+    const wr = winrate(w,l);
+
+    html += `
+      <div class="card">
+        
+        <div class="left">
+          <div class="name">#${i+1} ${p.name}</div>
+
+          <div class="rank">
+            SoloQ: ${p.solo?.rank || "Unranked"} | W:${w} L:${l} | WR:${wr}%
+          </div>
+
+          <div class="bar">
+            <div class="bar-fill" style="width:${wr}%"></div>
+          </div>
+        </div>
+
+        <div class="lp">${p.solo?.lp || 0} LP</div>
+
+        <div class="badge ${t}">
+          ${emojiRank(t)} ${t}
+        </div>
+
+      </div>
+    `;
+  });
+
+  document.getElementById("list").innerHTML = html;
+}
+
+function emojiRank(t){
+  switch(t){
+    case "IRON": return "⛓️";
+    case "BRONZE": return "🟤";
+    case "SILVER": return "⚪";
+    case "GOLD": return "🟡";
+    case "PLATINUM": return "🔷";
+    case "EMERALD": return "💚";
+    case "DIAMOND": return "💎";
+    case "MASTER": return "🟣";
+    case "GRANDMASTER": return "🔴";
+    case "CHALLENGER": return "👑";
+    default: return "❓";
+  }
+}
+
+load();
+setInterval(load, 15000);
+</script>
 
 </body>
 </html>
