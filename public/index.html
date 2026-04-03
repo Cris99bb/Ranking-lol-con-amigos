@@ -3,45 +3,80 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ranking LoL</title>
+  <title>Ranking LoL Pro</title>
 
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: white;
       margin: 0;
-      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: radial-gradient(circle at top, #0f172a, #020617);
+      color: white;
     }
 
     h1 {
       text-align: center;
-      margin-bottom: 20px;
+      padding: 20px;
+      font-size: 32px;
+      color: #38bdf8;
+      letter-spacing: 1px;
+    }
+
+    #ranking {
+      max-width: 800px;
+      margin: auto;
+      padding: 10px;
     }
 
     .card {
-      background: #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #111827;
+      border: 1px solid #1f2937;
       padding: 15px;
-      margin: 10px auto;
-      border-radius: 10px;
-      max-width: 500px;
-      transition: 0.3s;
+      margin: 10px 0;
+      border-radius: 12px;
+      transition: 0.25s;
     }
 
     .card:hover {
       transform: scale(1.02);
+      border-color: #38bdf8;
+    }
+
+    .left {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .name {
+      font-size: 18px;
+      font-weight: bold;
     }
 
     .rank {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .lp {
+      font-size: 18px;
+      font-weight: bold;
+      color: #22c55e;
+    }
+
+    .position {
+      font-size: 20px;
       font-weight: bold;
       color: #38bdf8;
+      width: 40px;
     }
   </style>
 </head>
 
 <body>
 
-  <h1>🔥 Ranking LoL en Vivo</h1>
+  <h1>🔥 Ranking LoL Pro</h1>
 
   <div id="ranking">Cargando...</div>
 
@@ -58,13 +93,19 @@
         data.forEach((p, i) => {
           html += `
             <div class="card">
-              <h2>#${i + 1} ${p.name}</h2>
-              <p class="rank">
-                SoloQ: ${p.solo ? p.solo.rank + " - " + p.solo.lp + " LP" : "Unranked"}
-              </p>
-              <p>
-                Flex: ${p.flex ? p.flex.rank + " - " + p.flex.lp + " LP" : "Unranked"}
-              </p>
+              <div class="position">#${i + 1}</div>
+
+              <div class="left">
+                <div class="name">${p.name}</div>
+                <div class="rank">
+                  SoloQ: ${p.solo ? p.solo.rank : "Unranked"} | 
+                  Flex: ${p.flex ? p.flex.rank : "Unranked"}
+                </div>
+              </div>
+
+              <div class="lp">
+                ${p.solo ? p.solo.lp + " LP" : ""}
+              </div>
             </div>
           `;
         });
@@ -72,7 +113,7 @@
         document.getElementById("ranking").innerHTML = html;
 
       } catch (err) {
-        document.getElementById("ranking").innerHTML = "❌ Error cargando ranking";
+        document.getElementById("ranking").innerHTML = "Error cargando datos";
       }
     }
 
