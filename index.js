@@ -5,7 +5,8 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-const API_KEY = "RGAPI-6571dbca-24fd-4f04-9ce4-0e685b13abba";
+// 🔐 KEY SEGURA (Render ENV)
+const API_KEY = process.env.RIOT_API_KEY;
 
 // 👇 jugadores
 const players = [
@@ -23,7 +24,7 @@ function splitName(full) {
 
 // 🔥 1. PUUID
 async function getPUUID(gameName, tagLine) {
-  const url = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}/${tagLine}`;
+  const url = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${tagLine}`;
 
   const res = await axios.get(url, {
     headers: { "X-Riot-Token": API_KEY }
@@ -32,7 +33,7 @@ async function getPUUID(gameName, tagLine) {
   return res.data.puuid;
 }
 
-// 🔥 2. SUMMONER ID (IMPORTANTE)
+// 🔥 2. SUMMONER ID
 async function getSummoner(puuid) {
   const url = `https://la1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`;
 
@@ -43,7 +44,7 @@ async function getSummoner(puuid) {
   return res.data.id;
 }
 
-// 🔥 3. RANKED DATA (ESTE ES EL CORRECTO)
+// 🔥 3. RANKED DATA
 async function getRank(summonerId) {
   const url = `https://la1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerId}`;
 
@@ -59,7 +60,7 @@ async function getRank(summonerId) {
   return { solo, flex };
 }
 
-// API
+// 📊 API
 app.get("/ranking", async (req, res) => {
   try {
     const results = [];
@@ -81,7 +82,10 @@ app.get("/ranking", async (req, res) => {
                 rank: rank.solo.rank,
                 lp: rank.solo.leaguePoints,
                 wins: rank.solo.wins,
-                losses: rank.solo.losses
+                losses: rank.solo.losses,
+                winrate: Math.round(
+                  (rank.solo.wins / (rank.solo.wins + rank.solo.losses)) * 100
+                )
               }
             : null,
 
@@ -91,7 +95,10 @@ app.get("/ranking", async (req, res) => {
                 rank: rank.flex.rank,
                 lp: rank.flex.leaguePoints,
                 wins: rank.flex.wins,
-                losses: rank.flex.losses
+                losses: rank.flex.losses,
+                winrate: Math.round(
+                  (rank.flex.wins / (rank.flex.wins + rank.flex.losses)) * 100
+                )
               }
             : null
         });
@@ -115,4 +122,6 @@ app.get("/ranking", async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("🔥 Server listo"));
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => console.log("🔥 Server listo en puerto", PORT));
