@@ -4,14 +4,13 @@ const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
-
-// 🔥 CORS (IMPORTANTE para Vercel)
-app.use(cors());
-
-// (opcional) si luego quieres servir frontend desde aquí
-app.use(express.static("public"));
-
 const PORT = process.env.PORT || 3001;
+
+app.use(cors());
+app.use(express.json());
+
+// 👉 servir frontend desde /public
+app.use(express.static("public"));
 
 const API_KEY = process.env.RIOT_API_KEY;
 
@@ -22,18 +21,18 @@ const players = [
   "KevinB2000#LAN"
 ];
 
-// 🔎 PUUID
+// 🔎 obtener PUUID
 async function getPUUID(gameName, tagLine) {
   try {
     const url = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?api_key=${API_KEY}`;
     const res = await axios.get(url);
     return res.data.puuid;
-  } catch {
+  } catch (err) {
     return null;
   }
 }
 
-// 📊 RANK
+// 🏆 obtener ranks
 async function getRank(puuid) {
   try {
     const url = `https://la1.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}?api_key=${API_KEY}`;
@@ -45,12 +44,12 @@ async function getRank(puuid) {
     const flex = data.find(x => x.queueType === "RANKED_FLEX_SR");
 
     return { solo, flex };
-  } catch {
+  } catch (err) {
     return null;
   }
 }
 
-// 🧠 SCORE
+// 📊 orden de rangos
 const tierOrder = {
   CHALLENGER: 9,
   GRANDMASTER: 8,
@@ -73,48 +72,46 @@ function getScore(player) {
   return (tierOrder[tier] || 0) * 1000 + lp;
 }
 
-// 🌍 API RANKING
+// 📡 API ranking
 app.get("/ranking", async (req, res) => {
-  try {
-    const results = [];
+  const results = [];
 
-    for (const fullName of players) {
-      const [gameName, tagLine] = fullName.split("#");
+  for (const fullName of players) {
+    const [gameName, tagLine] = fullName.split("#");
 
-      const puuid = await getPUUID(gameName, tagLine);
-      const rank = puuid ? await getRank(puuid) : null;
+    const puuid = await getPUUID(gameName, tagLine);
+    const rank = puuid ? await getRank(puuid) : null;
 
-      results.push({
-        name: fullName,
+    results.push({
+      name: fullName,
 
-        solo: rank?.solo ? {
-          lp: rank.solo.leaguePoints,
-          rank: `${rank.solo.tier} ${rank.solo.rank}`,
-          wins: rank.solo.wins,
-          losses: rank.solo.losses
-        } : null,
+      solo: rank?.solo
+        ? {
+            lp: rank.solo.leaguePoints,
+            rank: `${rank.solo.tier} ${rank.solo.rank}`,
+            wins: rank.solo.wins,
+            losses: rank.solo.losses
+          }
+        : null,
 
-        flex: rank?.flex ? {
-          lp: rank.flex.leaguePoints,
-          rank: `${rank.flex.tier} ${rank.flex.rank}`,
-          wins: rank.flex.wins,
-          losses: rank.flex.losses
-        } : null
-      });
-    }
-
-    // 🔥 ordenar
-    results.sort((a, b) => getScore(b) - getScore(a));
-
-    res.json(results);
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error en ranking API" });
+      flex: rank?.flex
+        ? {
+            lp: rank.flex.leaguePoints,
+            rank: `${rank.flex.tier} ${rank.flex.rank}`,
+            wins: rank.flex.wins,
+            losses: rank.flex.losses
+          }
+        : null
+    });
   }
+
+  // 🔥 ordenar mejor a peor
+  results.sort((a, b) => getScore(b) - getScore(a));
+
+  res.json(results);
 });
 
-// 🚀 START SERVER (RENDER FIX)
+// 🚀 server
 app.listen(PORT, () => {
   console.log(`🔥 Server running on port ${PORT}`);
 });
