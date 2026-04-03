@@ -1,5 +1,5 @@
 {
-  "name": "ranking-lol",
+  "name": "ranking-lol-con-amigos",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -8,6 +8,7 @@
   "dependencies": {
     "express": "^4.18.0",
     "axios": "^1.0.0",
-    "dotenv": "^16.0.0"
+    "dotenv": "^16.0.0",
+    "cors": "^2.8.5"
   }
 }
