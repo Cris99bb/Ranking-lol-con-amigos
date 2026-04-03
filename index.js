@@ -5,9 +5,9 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-const API_KEY = "RGAPI-8b3a45f9-17bb-4269-8ae4-9f3a04ac1f15";
+const API_KEY = "TU_RIOT_API_KEY_AQUI";
 
-// 👇 TUS JUGADORES
+// 👇 jugadores
 const players = [
   "AngélàWhítè#S3S0",
   "Muted#nyah",
@@ -15,13 +15,13 @@ const players = [
   "KevinB2000#LAN"
 ];
 
-// 🔥 separar gameName + tagLine
+// split name
 function splitName(full) {
   const [gameName, tagLine] = full.split("#");
   return { gameName, tagLine };
 }
 
-// 🔥 obtener PUUID
+// 🔥 1. PUUID
 async function getPUUID(gameName, tagLine) {
   const url = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}/${tagLine}`;
 
@@ -32,9 +32,20 @@ async function getPUUID(gameName, tagLine) {
   return res.data.puuid;
 }
 
-// 🔥 obtener ranked
-async function getRank(puuid) {
-  const url = `https://la1.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`;
+// 🔥 2. SUMMONER ID (IMPORTANTE)
+async function getSummoner(puuid) {
+  const url = `https://la1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`;
+
+  const res = await axios.get(url, {
+    headers: { "X-Riot-Token": API_KEY }
+  });
+
+  return res.data.id;
+}
+
+// 🔥 3. RANKED DATA (ESTE ES EL CORRECTO)
+async function getRank(summonerId) {
+  const url = `https://la1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerId}`;
 
   const res = await axios.get(url, {
     headers: { "X-Riot-Token": API_KEY }
@@ -48,7 +59,7 @@ async function getRank(puuid) {
   return { solo, flex };
 }
 
-// 🔥 API
+// API
 app.get("/ranking", async (req, res) => {
   try {
     const results = [];
@@ -58,7 +69,8 @@ app.get("/ranking", async (req, res) => {
 
       try {
         const puuid = await getPUUID(gameName, tagLine);
-        const rank = await getRank(puuid);
+        const summonerId = await getSummoner(puuid);
+        const rank = await getRank(summonerId);
 
         results.push({
           name: p,
@@ -85,6 +97,8 @@ app.get("/ranking", async (req, res) => {
         });
 
       } catch (err) {
+        console.log("ERROR jugador:", p, err.response?.data || err.message);
+
         results.push({
           name: p,
           solo: null,
@@ -97,8 +111,8 @@ app.get("/ranking", async (req, res) => {
 
   } catch (err) {
     console.log(err);
-    res.status(500).json({ error: "error server" });
+    res.status(500).json({ error: "server error" });
   }
 });
 
-app.listen(3000, () => console.log("🔥 Server listo en puerto 3000"));
+app.listen(3000, () => console.log("🔥 Server listo"));
