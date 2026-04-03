@@ -1,306 +1,86 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Ranking Pro Smooth</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ranking LoL</title>
 
-<style>
-body{
-  margin:0;
-  font-family:Arial;
-  background:#0b0f1a;
-  color:white;
-}
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
 
-/* HEADER */
-.header{
-  text-align:center;
-  padding:18px;
-  background:#0f1629;
-  border-bottom:1px solid #1f2a44;
-}
-.header h1{margin:0;color:#f5c542}
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
 
-/* TOP */
-.top{
-  width:80%;
-  margin:15px auto;
-  padding:18px;
-  background:linear-gradient(90deg,#1a2440,#0e1325);
-  border-radius:14px;
-  text-align:center;
-  color:gold;
-}
+    .card {
+      background: #1e293b;
+      padding: 15px;
+      margin: 10px auto;
+      border-radius: 10px;
+      max-width: 500px;
+      transition: 0.3s;
+    }
 
-/* BOTONES */
-.controls{
-  text-align:center;
-  margin:10px;
-}
-button{
-  padding:10px 14px;
-  margin:5px;
-  border:none;
-  border-radius:10px;
-  cursor:pointer;
-  background:#1f2a44;
-  color:white;
-}
-button:hover{background:#2b3a5f}
+    .card:hover {
+      transform: scale(1.02);
+    }
 
-/* LISTA */
-.container{
-  width:85%;
-  margin:auto;
-}
-
-/* CARD */
-.card{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  background:#121a2f;
-  margin:10px 0;
-  padding:16px;
-  border-radius:14px;
-
-  transition: transform 0.35s ease, opacity 0.35s ease;
-}
-
-/* efecto entrada suave */
-.card.new{
-  opacity:0;
-  transform:translateY(10px);
-}
-
-/* ICONO GRANDE */
-.icon{
-  width:140px;
-  height:140px;
-  object-fit:contain;
-  filter: drop-shadow(0 0 14px rgba(255,215,0,0.35));
-}
-
-/* LEFT */
-.left{
-  display:flex;
-  gap:15px;
-  align-items:center;
-}
-
-.name{font-weight:bold;font-size:18px}
-.rank{font-size:13px;color:#bbb}
-
-/* RIGHT */
-.stats{text-align:right}
-
-/* BAR */
-.bar{
-  width:170px;
-  height:7px;
-  background:#222;
-  border-radius:10px;
-  overflow:hidden;
-  margin-top:6px;
-}
-.fill{
-  height:100%;
-  background:linear-gradient(90deg,#00d2ff,#f5c542);
-}
-
-/* BADGES SOLO / FLEX */
-.badge{
-  display:inline-block;
-  padding:3px 8px;
-  border-radius:8px;
-  font-size:11px;
-  margin-left:6px;
-}
-.solo{background:#2ecc71}
-.flex{background:#9b59b6}
-
-/* +LP */
-.lpFloat{
-  position:absolute;
-  right:20px;
-  top:10px;
-  color:#2ecc71;
-  font-weight:bold;
-  animation:floatUp 1s ease forwards;
-}
-@keyframes floatUp{
-  0%{opacity:1; transform:translateY(0);}
-  100%{opacity:0; transform:translateY(-40px);}
-}
-
-.card-wrap{
-  position:relative;
-}
-</style>
-
+    .rank {
+      font-weight: bold;
+      color: #38bdf8;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="header">
-  <h1>🏆 Ranking Pro Smooth</h1>
-</div>
+  <h1>🔥 Ranking LoL en Vivo</h1>
 
-<div class="top" id="top"></div>
+  <div id="ranking">Cargando...</div>
 
-<div class="controls">
-  <button onclick="mode='solo'; load()">SoloQ</button>
-  <button onclick="mode='flex'; load()">Flex</button>
-</div>
+  <script>
+    const API_URL = "https://ranking-lol-con-amigos.onrender.com/ranking";
 
-<div class="container" id="container"></div>
+    async function loadRanking() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
 
-<script>
+        let html = "";
 
-let mode = "solo";
-let lastData = {};
-let audioCache = {};
+        data.forEach((p, i) => {
+          html += `
+            <div class="card">
+              <h2>#${i + 1} ${p.name}</h2>
+              <p class="rank">
+                SoloQ: ${p.solo ? p.solo.rank + " - " + p.solo.lp + " LP" : "Unranked"}
+              </p>
+              <p>
+                Flex: ${p.flex ? p.flex.rank + " - " + p.flex.lp + " LP" : "Unranked"}
+              </p>
+            </div>
+          `;
+        });
 
-/* WR */
-function winrate(w,l){
-  let t=w+l;
-  return t?Math.round((w/t)*100):0;
-}
+        document.getElementById("ranking").innerHTML = html;
 
-/* SONIDO */
-function playSound(){
-  if(!audioCache.rank){
-    audioCache.rank = new Audio("https://www.myinstants.com/media/sounds/success-fanfare-trumpets.mp3");
-  }
-  audioCache.rank.volume = 0.4;
-  audioCache.rank.play();
-}
-
-/* ICONOS GRANDES */
-function getIcon(tier){
-  const icons={
-    DIAMOND:"https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/ranked-emblem/emblem-diamond.png",
-    EMERALD:"https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/ranked-emblem/emblem-emerald.png",
-    PLATINUM:"https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/ranked-emblem/emblem-platinum.png",
-    GOLD:"https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/ranked-emblem/emblem-gold.png",
-    SILVER:"https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/ranked-emblem/emblem-silver.png",
-    BRONZE:"https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/ranked-emblem/emblem-bronze.png",
-    IRON:"https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/ranked-emblem/emblem-iron.png"
-  };
-  return icons[tier]||icons.IRON;
-}
-
-/* +LP ANIMATION */
-function showLP(card){
-  const d=document.createElement("div");
-  d.className="lpFloat";
-  d.innerText="+25 LP";
-  card.appendChild(d);
-  setTimeout(()=>d.remove(),1000);
-}
-
-/* CREAR CARD (SIN PARPADEO) */
-function createCard(p,i,d,type){
-
-  const tier = (d.rank||"IRON").split(" ")[0];
-  const wr = winrate(d.wins||0,d.losses||0);
-
-  const id = p.name + type;
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "card";
-  wrapper.id = id;
-
-  wrapper.innerHTML = `
-    <div class="left">
-      <img class="icon" src="${getIcon(tier)}">
-
-      <div>
-        <div class="name">#${i+1} ${p.name}
-          <span class="badge ${type}">${type.toUpperCase()}</span>
-        </div>
-        <div class="rank">${d.rank} ${d.lp} LP</div>
-      </div>
-    </div>
-
-    <div class="stats">
-      <div>${d.wins}W / ${d.losses}L</div>
-      <div>${wr}% WR</div>
-      <div class="bar">
-        <div class="fill" style="width:${wr}%"></div>
-      </div>
-    </div>
-  `;
-
-  return wrapper;
-}
-
-/* LOAD SIN RELOAD VISUAL */
-async function load(){
-
-  const res = await fetch("/ranking");
-  const data = await res.json();
-
-  const container = document.getElementById("container");
-  const top = document.getElementById("top");
-
-  const best = data[0];
-  const dTop = mode==="solo" ? best.solo : best.flex;
-
-  top.innerHTML = `👑 TOP 1 <b>${best.name}</b> • ${dTop.rank} ${dTop.lp} LP`;
-
-  const newKeys = {};
-
-  data.forEach((p,i)=>{
-
-    const d = mode==="solo" ? p.solo : p.flex;
-    if(!d) return;
-
-    const key = p.name + mode;
-    newKeys[key] = true;
-
-    const existing = document.getElementById(key);
-
-    /* SI YA EXISTE → SOLO ACTUALIZA */
-    if(existing){
-
-      const wr = winrate(d.wins||0,d.losses||0);
-
-      existing.querySelector(".rank").innerText = `${d.rank} ${d.lp} LP`;
-      existing.querySelector(".stats").children[0].innerText = `${d.wins}W / ${d.losses}L`;
-      existing.querySelector(".stats").children[1].innerText = `${wr}% WR`;
-      existing.querySelector(".fill").style.width = wr+"%";
-
-      return;
+      } catch (err) {
+        document.getElementById("ranking").innerHTML = "❌ Error cargando ranking";
+      }
     }
 
-    /* SI ES NUEVO → ANIMADO */
-    const card = createCard(p,i,d,mode);
-    card.classList.add("new");
-    container.appendChild(card);
+    loadRanking();
 
-    requestAnimationFrame(()=>{
-      card.classList.remove("new");
-    });
-
-    playSound();
-    showLP(card);
-  });
-
-  /* LIMPIAR LOS QUE YA NO EXISTEN */
-  [...container.children].forEach(c=>{
-    if(!newKeys[c.id]){
-      c.style.opacity="0";
-      setTimeout(()=>c.remove(),300);
-    }
-  });
-
-}
-
-load();
-setInterval(load, 4000);
-
-</script>
+    // 🔥 auto refresh cada 30 segundos
+    setInterval(loadRanking, 30000);
+  </script>
 
 </body>
 </html>
