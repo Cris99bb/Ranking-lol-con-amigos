@@ -5,7 +5,7 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-const API_KEY = "RGAPI-8b3a45f9-17bb-4269-8ae4-9f3a04ac1f15";
+const API_KEY = "RGAPI-6571dbca-24fd-4f04-9ce4-0e685b13abba";
 
 // 👇 jugadores
 const players = [
