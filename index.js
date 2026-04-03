@@ -5,7 +5,7 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-// 🔐 KEY SEGURA (Render ENV)
+// 🔐 Riot API KEY (Render ENV)
 const API_KEY = process.env.RIOT_API_KEY;
 
 // 👇 jugadores
@@ -16,7 +16,7 @@ const players = [
   "KevinB2000#LAN"
 ];
 
-// split name
+// separar nombre y tag
 function splitName(full) {
   const [gameName, tagLine] = full.split("#");
   return { gameName, tagLine };
@@ -24,7 +24,9 @@ function splitName(full) {
 
 // 🔥 1. PUUID
 async function getPUUID(gameName, tagLine) {
-  const url = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${tagLine}`;
+  const url = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(
+    gameName
+  )}/${tagLine}`;
 
   const res = await axios.get(url, {
     headers: { "X-Riot-Token": API_KEY }
@@ -60,7 +62,7 @@ async function getRank(summonerId) {
   return { solo, flex };
 }
 
-// 📊 API
+// 📊 API RANKING
 app.get("/ranking", async (req, res) => {
   try {
     const results = [];
@@ -73,34 +75,27 @@ app.get("/ranking", async (req, res) => {
         const summonerId = await getSummoner(puuid);
         const rank = await getRank(summonerId);
 
+        const formatRank = (r) => {
+          if (!r) return null;
+
+          const totalGames = r.wins + r.losses;
+
+          return {
+            tier: r.tier,
+            rank: r.rank,
+            lp: r.leaguePoints,
+            wins: r.wins,
+            losses: r.losses,
+            winrate: totalGames > 0
+              ? Math.round((r.wins / totalGames) * 100)
+              : 0
+          };
+        };
+
         results.push({
           name: p,
-
-          solo: rank.solo
-            ? {
-                tier: rank.solo.tier,
-                rank: rank.solo.rank,
-                lp: rank.solo.leaguePoints,
-                wins: rank.solo.wins,
-                losses: rank.solo.losses,
-                winrate: Math.round(
-                  (rank.solo.wins / (rank.solo.wins + rank.solo.losses)) * 100
-                )
-              }
-            : null,
-
-          flex: rank.flex
-            ? {
-                tier: rank.flex.tier,
-                rank: rank.flex.rank,
-                lp: rank.flex.leaguePoints,
-                wins: rank.flex.wins,
-                losses: rank.flex.losses,
-                winrate: Math.round(
-                  (rank.flex.wins / (rank.flex.wins + rank.flex.losses)) * 100
-                )
-              }
-            : null
+          solo: formatRank(rank.solo),
+          flex: formatRank(rank.flex)
         });
 
       } catch (err) {
@@ -122,6 +117,6 @@ app.get("/ranking", async (req, res) => {
   }
 });
 
+// 🚀 SERVER
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => console.log("🔥 Server listo en puerto", PORT));
