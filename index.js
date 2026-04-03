@@ -5,10 +5,8 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-// 🔐 Riot API KEY (Render ENV)
-const API_KEY = process.env.RIOT_API_KEY;
+const API_KEY = "RGAPI-010b98e7-835d-422a-bf50-c91a59132f1c";
 
-// 👇 jugadores
 const players = [
   "AngélàWhítè#S3S0",
   "Muted#nyah",
@@ -16,107 +14,58 @@ const players = [
   "KevinB2000#LAN"
 ];
 
-// separar nombre y tag
 function splitName(full) {
   const [gameName, tagLine] = full.split("#");
   return { gameName, tagLine };
 }
 
-// 🔥 1. PUUID
 async function getPUUID(gameName, tagLine) {
-  const url = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(
-    gameName
-  )}/${tagLine}`;
-
-  const res = await axios.get(url, {
-    headers: { "X-Riot-Token": API_KEY }
-  });
-
+  const url = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${tagLine}`;
+  const res = await axios.get(url, { headers: { "X-Riot-Token": API_KEY } });
   return res.data.puuid;
 }
 
-// 🔥 2. SUMMONER ID
 async function getSummoner(puuid) {
   const url = `https://la1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`;
-
-  const res = await axios.get(url, {
-    headers: { "X-Riot-Token": API_KEY }
-  });
-
+  const res = await axios.get(url, { headers: { "X-Riot-Token": API_KEY } });
   return res.data.id;
 }
 
-// 🔥 3. RANKED DATA
-async function getRank(summonerId) {
-  const url = `https://la1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerId}`;
+async function getRank(id) {
+  const url = `https://la1.api.riotgames.com/lol/league/v4/entries/by-summoner/${id}`;
+  const res = await axios.get(url, { headers: { "X-Riot-Token": API_KEY } });
 
-  const res = await axios.get(url, {
-    headers: { "X-Riot-Token": API_KEY }
-  });
-
-  const data = res.data;
-
-  const solo = data.find(d => d.queueType === "RANKED_SOLO_5x5");
-  const flex = data.find(d => d.queueType === "RANKED_FLEX_SR");
+  const solo = res.data.find(r => r.queueType === "RANKED_SOLO_5x5");
+  const flex = res.data.find(r => r.queueType === "RANKED_FLEX_SR");
 
   return { solo, flex };
 }
 
-// 📊 API RANKING
 app.get("/ranking", async (req, res) => {
-  try {
-    const results = [];
+  const results = [];
 
-    for (const p of players) {
-      const { gameName, tagLine } = splitName(p);
+  for (const p of players) {
+    const { gameName, tagLine } = splitName(p);
 
-      try {
-        const puuid = await getPUUID(gameName, tagLine);
-        const summonerId = await getSummoner(puuid);
-        const rank = await getRank(summonerId);
+    try {
+      const puuid = await getPUUID(gameName, tagLine);
+      const summonerId = await getSummoner(puuid);
+      const rank = await getRank(summonerId);
 
-        const formatRank = (r) => {
-          if (!r) return null;
+      results.push({
+        name: p,
+        solo: rank.solo,
+        flex: rank.flex
+      });
 
-          const totalGames = r.wins + r.losses;
-
-          return {
-            tier: r.tier,
-            rank: r.rank,
-            lp: r.leaguePoints,
-            wins: r.wins,
-            losses: r.losses,
-            winrate: totalGames > 0
-              ? Math.round((r.wins / totalGames) * 100)
-              : 0
-          };
-        };
-
-        results.push({
-          name: p,
-          solo: formatRank(rank.solo),
-          flex: formatRank(rank.flex)
-        });
-
-      } catch (err) {
-        console.log("ERROR jugador:", p, err.response?.data || err.message);
-
-        results.push({
-          name: p,
-          solo: null,
-          flex: null
-        });
-      }
+    } catch (err) {
+      console.log("error:", p);
+      results.push({ name: p, solo: null, flex: null });
     }
-
-    res.json(results);
-
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: "server error" });
   }
+
+  res.json(results);
 });
 
-// 🚀 SERVER
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("🔥 Server listo en puerto", PORT));
+app.listen(PORT, () => console.log("🔥 OK en puerto", PORT));
