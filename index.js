@@ -5,7 +5,7 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-const API_KEY = "TU_RIOT_API_KEY_AQUI";
+const API_KEY = "RGAPI-8b3a45f9-17bb-4269-8ae4-9f3a04ac1f15";
 
 // 👇 jugadores
 const players = [
